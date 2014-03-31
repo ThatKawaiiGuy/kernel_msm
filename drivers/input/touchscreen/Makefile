@@ -87,3 +87,4 @@ obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4) += touch_synaptics.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4) += touch_synaptics_ds4_fw_upgrade.o
 obj-$(CONFIG_TOUCHSCREEN_ELAN_TF_3K)    += ektf3k.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)	+= DS4/
+obj-y += touchboost.o
