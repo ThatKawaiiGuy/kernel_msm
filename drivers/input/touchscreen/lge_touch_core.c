@@ -657,7 +657,6 @@ out_need_to_rebase:
 out_need_to_init:	
 	return NEED_TO_INIT;
 }
-#endif
 
 void Send_Touch( unsigned int x, unsigned int y)
 {

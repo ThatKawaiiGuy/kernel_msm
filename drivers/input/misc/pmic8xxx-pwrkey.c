@@ -193,7 +193,6 @@ static int __devinit pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 		input_report_key(pwrkey->pwr, KEY_POWER, 1);
 		input_sync(pwrkey->pwr);
 	}
-
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 #ifdef CONFIG_TOUCHSCREEN_SWEEP2WAKE
 	pr_info("[wake_up_display]: set device %s\n", pwr->name);
@@ -220,8 +219,6 @@ static int __devinit pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
-
-	wake_up_display(pwr);
 
 	return 0;
 
