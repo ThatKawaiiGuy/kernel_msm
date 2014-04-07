@@ -100,22 +100,13 @@ static struct scalable scalable[] __initdata = {
  * We rely on the RPM rounding requests up here.
  */
 static struct msm_bus_paths bw_level_tbl[] __initdata = {
-#ifdef CONFIG_GPU_OVERCLOCK
     [0] =  BW_MBPS(640), /* At least  80 MHz on bus. */
     [1] = BW_MBPS(1064), /* At least 133 MHz on bus. */
     [2] = BW_MBPS(1600), /* At least 200 MHz on bus. */
     [3] = BW_MBPS(2128), /* At least 266 MHz on bus. */
     [4] = BW_MBPS(3200), /* At least 400 MHz on bus. */
     [5] = BW_MBPS(4264), /* At least 533 MHz on bus. */
-    [6] = BW_MBPS(5290), /* At least 533 MHz on bus. */
-#else
-    [0] = BW_MBPS(640), /* At least  80 MHz on bus. */
-    [1] = BW_MBPS(1064), /* At least 133 MHz on bus. */
-    [2] = BW_MBPS(1600), /* At least 200 MHz on bus. */
-    [3] = BW_MBPS(2128), /* At least 266 MHz on bus. */
-    [4] = BW_MBPS(3200), /* At least 400 MHz on bus. */
-    [5] = BW_MBPS(4264), /* At least 533 MHz on bus. */
-#endif
+    [6] = BW_MBPS(4800), /* At least 600 MHz on bus. */
 };
 
 static struct msm_bus_scale_pdata bus_scale_data __initdata = {
@@ -126,9 +117,9 @@ static struct msm_bus_scale_pdata bus_scale_data __initdata = {
 };
 
 static struct l2_level l2_freq_tbl[] __initdata = {
-    [0]  = { {  192000, PLL_8, 0, 0x00 },  800000, 800000,  1 },
-    [1]  = { {  288000, HFPLL, 2, 0x20 },  950000, 950000,  1 },
-    [2]  = { {  384000, HFPLL, 2, 0x24 },  950000, 950000,  1 },
+    [0]  = { {  81000, PLL_8, 0, 0x00 },  800000, 800000,  1 },
+    [1]  = { {  192000, HFPLL, 2, 0x20 },  950000, 950000,  1 },
+    [2]  = { {  288000, HFPLL, 2, 0x24 },  950000, 950000,  1 },
     [3]  = { {  486000, HFPLL, 2, 0x28 },  950000, 950000,  2 },
     [4]  = { {  540000, HFPLL, 1, 0x16 },  950000, 950000,  2 },
     [5]  = { {  594000, HFPLL, 1, 0x18 },  950000, 950000,  2 },
@@ -147,6 +138,7 @@ static struct l2_level l2_freq_tbl[] __initdata = {
 };
 
 static struct acpu_level acpu_freq_tbl_slow[] __initdata = {
+    { 1, {    81000, HFPLL, 2, 0x06 }, L2(0),   800000 },
     { 1, {   192000, PLL_8, 0, 0x00 }, L2(0),   825000 },
     { 1, {   288000, HFPLL, 2, 0x20 }, L2(0),   850000 },
     //{ 0, {   384000, HFPLL, 0, 2, 0x20 }, L2(6),   875000 },
@@ -173,6 +165,7 @@ static struct acpu_level acpu_freq_tbl_slow[] __initdata = {
     { 0, { 0 } }
 };
 static struct acpu_level acpu_freq_tbl_nom[] __initdata = {
+    { 1, {    81000, HFPLL, 2, 0x06 }, L2(0),   750000 },
     { 1, {   192000, PLL_8, 0, 0x00 }, L2(0),   775000 },
     { 1, {   288000, HFPLL, 2, 0x20 }, L2(0),   800000 },
     //{ 0, {   384000, HFPLL, 0, 2, 0x20 }, L2(6),   825000 },
@@ -200,6 +193,7 @@ static struct acpu_level acpu_freq_tbl_nom[] __initdata = {
 };
 
 static struct acpu_level acpu_freq_tbl_fast[] __initdata = {
+    { 1, {    81000, HFPLL, 2, 0x06 }, L2(0),   700000 },
     { 1, {   192000, PLL_8, 0, 0x00 }, L2(0),   725000 },
     { 1, {   288000, HFPLL, 2, 0x20 }, L2(0),   750000 },
     //{ 0, {   384000, HFPLL, 0, 2, 0x20 }, L2(6),   775000 },
@@ -227,6 +221,7 @@ static struct acpu_level acpu_freq_tbl_fast[] __initdata = {
 };
 
 static struct acpu_level acpu_freq_tbl_faster[] __initdata = {
+    { 1, {    81000, HFPLL, 2, 0x06 }, L2(0),   700000 },
     { 1, {   192000, PLL_8, 0, 0x00 }, L2(0),   725000 },
     { 1, {   288000, HFPLL, 2, 0x20 }, L2(0),   750000 },
     //{ 0, {   384000, HFPLL, 0, 2, 0x20 }, L2(6),   775000 },
@@ -269,7 +264,7 @@ static struct acpuclk_krait_params acpuclk_8064_params __initdata = {
     .l2_freq_tbl_size = sizeof(l2_freq_tbl),
     .bus_scale = &bus_scale_data,
     .pte_efuse_phys = 0x007000C0,
-    .stby_khz = 192000,
+    .stby_khz = 81000,
 };
 
 static int __init acpuclk_8064_probe(struct platform_device *pdev)
