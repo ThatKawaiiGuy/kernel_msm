@@ -68,14 +68,14 @@ static spinlock_t speedchange_cpumask_lock;
 static struct mutex gov_lock;
 
 /* Hi speed to bump to from lo speed when load burst (default max) */
-static unsigned int hispeed_freq = 1350000;
+static unsigned int hispeed_freq = 900000;
 
 /* Go to hi speed when CPU load at or above this value. */
 #define DEFAULT_GO_HISPEED_LOAD 90
 static unsigned long go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
 
 /* Sampling down factor to be applied to min_sample_time at max freq */
-#define DEFAULT_SAMPLING_DOWN_FACTOR 120000
+#define DEFAULT_SAMPLING_DOWN_FACTOR 100000
 static unsigned int sampling_down_factor = DEFAULT_SAMPLING_DOWN_FACTOR;
 
 /* Target load.  Lower values result in higher CPU speeds. */
@@ -112,7 +112,7 @@ static unsigned int *above_hispeed_delay = default_above_hispeed_delay;
 static int nabove_hispeed_delay = ARRAY_SIZE(default_above_hispeed_delay);
 
 /* 1000ms - 1s */
-#define DEFAULT_BOOSTPULSE_DURATION 1000000
+#define DEFAULT_BOOSTPULSE_DURATION 500000
 /* Duration of a boot pulse in usecs */
 static int boostpulse_duration_val = DEFAULT_BOOSTPULSE_DURATION;
 bool boosted;
@@ -121,7 +121,7 @@ bool boosted;
  * Max additional time to wait in idle, beyond timer_rate, at speeds above
  * minimum before wakeup to reduce speed, or -1 if unnecessary.
  */
-#define DEFAULT_TIMER_SLACK (70000)
+#define DEFAULT_TIMER_SLACK (30000)
 static int timer_slack_val = DEFAULT_TIMER_SLACK;
 
 static bool io_is_busy = true;
@@ -134,7 +134,7 @@ static bool io_is_busy = true;
 int input_boost_freq = DEFAULT_INPUT_BOOST_FREQ;
 extern u64 last_input_time;
 
-#define CPU_SYNC_FREQ 918000
+#define CPU_SYNC_FREQ 1000000
 
 /*
  * If the max load among other CPUs is higher than up_threshold_any_cpu_load
@@ -143,23 +143,9 @@ extern u64 last_input_time;
  * sync_freq
  */
 
-static unsigned int up_threshold_any_cpu_load = 50;
+static unsigned int up_threshold_any_cpu_load = 65;
 static unsigned int sync_freq = CPU_SYNC_FREQ;
-static unsigned int up_threshold_any_cpu_freq = 1458000;
-
-
-static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
-		unsigned int event);
-
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
-static
-#endif
-struct cpufreq_governor cpufreq_gov_interactive = {
-	.name = "interactive",
-	.governor = cpufreq_governor_interactive,
-	.max_transition_latency = 10000000,
-	.owner = THIS_MODULE,
-};
+static unsigned int up_threshold_any_cpu_freq = 1100000;
 
 static void cpufreq_interactive_timer_resched(
 	struct cpufreq_interactive_cpuinfo *pcpu)
@@ -759,15 +745,20 @@ static int thread_migration_notify(struct notifier_block *nb,
 	struct cpufreq_interactive_cpuinfo *target, *source;
 	target = &per_cpu(cpuinfo, target_cpu);
 	source = &per_cpu(cpuinfo, (int)arg);
-	
+
+	/*
+	 * If there's a thread migration in the same core we don't want to
+	 * boost it
+	 */
+	if ((int)arg == target_cpu)
+		return NOTIFY_OK;
+
 	if (source->policy->cur > target->policy->cur)
 	{
-		if (source->policy->cur < boost_freq)
+		if (source->policy->cur > boost_freq)
 			boost_freq = source->policy->cur;
 
 		target->target_freq = boost_freq;
-		target->floor_freq = boost_freq;
-		target->floor_validate_time = ktime_to_us(ktime_get());
 
 		spin_lock_irqsave(&speedchange_cpumask_lock, flags);
 		cpumask_set_cpu(target_cpu, &speedchange_cpumask);
@@ -796,7 +787,7 @@ static ssize_t show_target_loads(
 		ret += sprintf(buf + ret, "%u%s", target_loads[i],
 			       i & 0x1 ? ":" : " ");
 
-	ret += sprintf(buf + --ret, "\n");
+	sprintf(buf + ret - 1, "\n");
 	spin_unlock_irqrestore(&target_loads_lock, flags);
 	return ret;
 }
@@ -839,7 +830,7 @@ static ssize_t show_above_hispeed_delay(
 		ret += sprintf(buf + ret, "%u%s", above_hispeed_delay[i],
 			       i & 0x1 ? ":" : " ");
 
-	ret += sprintf(buf + --ret, "\n");
+	sprintf(buf + ret - 1, "\n");
 	spin_unlock_irqrestore(&above_hispeed_delay_lock, flags);
 	return ret;
 }
@@ -991,13 +982,13 @@ static ssize_t store_input_boost_freq(struct kobject *kobj, struct attribute *at
 {
 	int ret;
 	unsigned long val;
-    
+
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
-    
+
 	input_boost_freq = val;
-    
+
 	return count;
 }
 
@@ -1324,6 +1315,16 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 	}
 	return 0;
 }
+
+#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
+static
+#endif
+struct cpufreq_governor cpufreq_gov_interactive = {
+	.name = "interactive",
+	.governor = cpufreq_governor_interactive,
+	.max_transition_latency = 10000000,
+	.owner = THIS_MODULE,
+};
 
 static void cpufreq_interactive_nop_timer(unsigned long data)
 {
