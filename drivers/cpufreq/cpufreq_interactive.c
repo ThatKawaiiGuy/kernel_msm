@@ -147,6 +147,9 @@ static unsigned int up_threshold_any_cpu_load = 65;
 static unsigned int sync_freq = CPU_SYNC_FREQ;
 static unsigned int up_threshold_any_cpu_freq = 1100000;
 
+#define DOWN_LOW_LOAD_THRESHOLD 5
+static bool idle_notifier = false;
+
 static void cpufreq_interactive_timer_resched(
 	struct cpufreq_interactive_cpuinfo *pcpu)
 {
@@ -322,6 +325,15 @@ static unsigned int choose_freq(
 	return freq;
 }
 
+static unsigned int calc_freq(struct cpufreq_interactive_cpuinfo *pcpu,
+	unsigned int load)
+{
+	unsigned int max = pcpu->policy->max;
+	unsigned int min = pcpu->policy->min;
+
+	return min + load * (max - min) / 100;
+}
+
 static u64 update_load(int cpu)
 {
 	struct cpufreq_interactive_cpuinfo *pcpu = &per_cpu(cpuinfo, cpu);
@@ -394,15 +406,20 @@ static void cpufreq_interactive_timer(unsigned long data)
 			new_freq = hispeed_freq;
 		else
 		{
-			new_freq = choose_freq(pcpu, loadadjfreq);
-
+			new_freq = calc_freq(pcpu, cpu_load);
 			if (new_freq < hispeed_freq)
 				new_freq = hispeed_freq;
 		}
 	}
+	else if (cpu_load <= DOWN_LOW_LOAD_THRESHOLD) {
+		new_freq = pcpu->policy->cpuinfo.min_freq;
+	}
 	else
 	{
-		new_freq = choose_freq(pcpu, loadadjfreq);
+		new_freq = calc_freq(pcpu, cpu_load);
+		if (new_freq > hispeed_freq &&
+					new_freq < pcpu->target_freq)
+				new_freq = hispeed_freq;
 
 		if (sync_freq && new_freq < sync_freq) {
 
@@ -446,7 +463,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	pcpu->hispeed_validate_time = now;
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
-					   new_freq, CPUFREQ_RELATION_L,
+					   new_freq, CPUFREQ_RELATION_C,
 					   &index)) {
 		spin_unlock_irqrestore(&pcpu->target_freq_lock, flags);
 		goto rearm;
@@ -509,7 +526,7 @@ rearm_if_notmax:
 	 * Already set max speed and don't see a need to change that,
 	 * wait until next idle to re-evaluate, don't need timer.
 	 */
-	if (pcpu->target_freq == pcpu->policy->max)
+	if (idle_notifier && pcpu->target_freq == pcpu->policy->max)
 		goto exit;
 
 rearm:
@@ -1234,8 +1251,13 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 					&thread_migration_nb);
 
 		idle_notifier_register(&cpufreq_interactive_idle_nb);
-		cpufreq_register_notifier(
-			&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
+
+		if (idle_notifier)
+		{
+			cpufreq_register_notifier(
+				&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
+		}
+
 		mutex_unlock(&gov_lock);
 		break;
 
@@ -1260,8 +1282,12 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 				&migration_notifier_head,
 				&thread_migration_nb);
 
-		cpufreq_unregister_notifier(
-			&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
+		if (idle_notifier)
+		{
+			cpufreq_unregister_notifier(
+				&cpufreq_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
+		}
+
 		idle_notifier_unregister(&cpufreq_interactive_idle_nb);
 		sysfs_remove_group(cpufreq_global_kobject,
 				&interactive_attr_group);
